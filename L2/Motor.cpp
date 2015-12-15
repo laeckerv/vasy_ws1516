@@ -37,6 +37,7 @@
 
 #include <csignal>
 #include <iostream>
+#include <thread>
 #include <unistd.h>
 
 /*
@@ -51,19 +52,13 @@
  * Additional linker flags: none
  */
 
-static mraa::Pwm* pwm_steering = new mraa::Pwm(0);
-static mraa::Pwm* pwm_engine = new mraa::Pwm(14);
-static mraa::Gpio* pin_standby = new mraa::Gpio(15);
-static mraa::Gpio* pin_forward = new mraa::Gpio(45);
-static mraa::Gpio* pin_backward = new mraa::Gpio(46);
-static mraa::Gpio* pin_left = new mraa::Gpio(47);
-static mraa::Gpio* pin_right = new mraa::Gpio(48);
-
-void handle(int sig) {
-	pwm_engine->config_percent(1, 0);
-	pwm_steering->config_percent(1, 0);
-	exit(0);
-}
+mraa::Pwm* pwm_engine = new mraa::Pwm(0);
+mraa::Pwm* pwm_steering = new mraa::Pwm(14);
+mraa::Gpio* pin_standby = new mraa::Gpio(15);
+mraa::Gpio* pin_backward = new mraa::Gpio(45);
+mraa::Gpio* pin_forward = new mraa::Gpio(46);
+mraa::Gpio* pin_right = new mraa::Gpio(47);
+mraa::Gpio* pin_left = new mraa::Gpio(48);
 
 void reset_Engine() {
     pin_forward->write(0);
@@ -77,22 +72,24 @@ void reset_Steering() {
     pwm_steering->config_percent(1, 0);
 }
 
-void stop() {
+void stop(void) {
 	pin_forward->write(1);
 	pin_backward->write(1);
-	pwm_engine->config_percent(0.5f, 1);
+	usleep(500000);
+    pin_forward->write(0);
+    pin_backward->write(0);
+}
 
-    sleep(2);
-	//usleep(1500000);
-
+void handle(int sig) {
     reset_Engine();
+    reset_Steering();
+    exit(0);
 }
 
 void onem_straight(bool forward) {
 	pin_forward->write(forward);
 	pin_backward->write(!forward);
 	pwm_engine->config_percent(1, 0.2);
-
 	usleep(3600000);
 	stop();
 }
@@ -102,7 +99,6 @@ void left(int usec) {
     pin_right->write(0);
     pwm_steering->config_percent(1, 1);
     usleep(usec);
-
     reset_Steering();
 }
 
@@ -111,7 +107,6 @@ void right(int usec) {
     pin_right->write(1);
     pwm_steering->config_percent(1, 1);
     usleep(usec);
-
     reset_Steering();
 }
 
@@ -175,9 +170,10 @@ int init() {
         return MRAA_ERROR_UNSPECIFIED;
     }
 
-    pin_standby->write(1);	// standby=1 means motor on
+    pin_standby->write(0);	// standby=0 means motor off
     reset_Engine();
     reset_Steering();
+    pin_standby->write(1);
 
     return mraa::SUCCESS;
 }
@@ -190,22 +186,18 @@ int main() {
     if((ret = init()) != 0)
         return ret;
 
+    //std::thread t1(left, 2000000);
+    std::thread t2(onem_straight, true);
+    t2.join();
+    //std::thread t3(right, 2000000);
+    std::thread t4(onem_straight, true);
+    t4.join();
     sleep(2);
-    std::cout << "Breaking now" << std::endl;
-	stop();
-    std::cout << "Done breaking" << std::endl;
-	// onem_straight(true);
-	// onem_straight(true);
-	// onem_straight(true);
 
-	// sleep(2);
-	// onem_straight(false);
-	// onem_straight(false);
-	// onem_straight(false);
+    //t1.join();
+    //t3.join();
 
-	// // Reset
-    reset_Engine();
-    reset_Steering();
-
-	return 0;
+	// Reset
+    handle(SIGINT);
 }
+

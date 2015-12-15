@@ -1,7 +1,7 @@
 
 CC=g++
-CFLAGS=-c -Wall -Wno-enum-compare
-LDFLAGS=-lmraa
+CFLAGS=-c -Wall -Wno-enum-compare -std=c++11
+LDFLAGS=-lmraa -pthread
 
 all: Motor
 
