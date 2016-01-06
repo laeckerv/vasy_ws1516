@@ -38,7 +38,8 @@
 #include <csignal>
 #include <iostream>
 #include <thread>
-#include <unistd.h>
+#include <vector>
+#include <algorithm>
 
 /*
  * On board LED blink C++ example
@@ -52,13 +53,15 @@
  * Additional linker flags: none
  */
 
-mraa::Pwm* pwm_engine = new mraa::Pwm(0);
-mraa::Pwm* pwm_steering = new mraa::Pwm(14);
-mraa::Gpio* pin_standby = new mraa::Gpio(15);
-mraa::Gpio* pin_backward = new mraa::Gpio(45);
-mraa::Gpio* pin_forward = new mraa::Gpio(46);
-mraa::Gpio* pin_right = new mraa::Gpio(47);
-mraa::Gpio* pin_left = new mraa::Gpio(48);
+using namespace std;
+
+mraa::Pwm *pwm_engine = new mraa::Pwm(0);
+mraa::Pwm *pwm_steering = new mraa::Pwm(14);
+mraa::Gpio *pin_standby = new mraa::Gpio(15);
+mraa::Gpio *pin_backward = new mraa::Gpio(45);
+mraa::Gpio *pin_forward = new mraa::Gpio(46);
+mraa::Gpio *pin_right = new mraa::Gpio(47);
+mraa::Gpio *pin_left = new mraa::Gpio(48);
 
 void reset_Engine() {
     pin_forward->write(0);
@@ -73,9 +76,9 @@ void reset_Steering() {
 }
 
 void stop(void) {
-	pin_forward->write(1);
-	pin_backward->write(1);
-	usleep(500000);
+    pin_forward->write(1);
+    pin_backward->write(1);
+    usleep(500000);
     pin_forward->write(0);
     pin_backward->write(0);
 }
@@ -87,11 +90,11 @@ void handle(int sig) {
 }
 
 void onem_straight(bool forward) {
-	pin_forward->write(forward);
-	pin_backward->write(!forward);
-	pwm_engine->config_percent(1, 0.2);
-	usleep(3600000);
-	stop();
+    pin_forward->write(forward);
+    pin_backward->write(!forward);
+    pwm_engine->config_percent(1, 0.2);
+    usleep(3600000);
+    stop();
 }
 
 void left(int usec) {
@@ -112,65 +115,65 @@ void right(int usec) {
 
 int init() {
     if (pwm_engine == NULL) {
-        std::cerr << "Can't create mraa::Pwm object, exiting" << std::endl;
+        cerr << "Can't create mraa::Pwm object, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pwm_engine->enable(true) != MRAA_SUCCESS) {
-        std::cerr << "Cannot enable PWM on mraa::PWM object, exiting"
-        << std::endl;
+        cerr << "Cannot enable PWM on mraa::PWM object, exiting"
+        << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pwm_steering == NULL) {
-        std::cerr << "Can't create mraa::Pwm object, exiting" << std::endl;
+        cerr << "Can't create mraa::Pwm object, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pwm_steering->enable(true) != MRAA_SUCCESS) {
-        std::cerr << "Cannot enable PWM on mraa::PWM object, exiting"
-        << std::endl;
+        cerr << "Cannot enable PWM on mraa::PWM object, exiting"
+        << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pin_standby == NULL) {
-        std::cerr << "Can't create mraa::Pwm object, exiting" << std::endl;
+        cerr << "Can't create mraa::Pwm object, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pin_standby->dir(mraa::DIR_OUT) != MRAA_SUCCESS) {
-        std::cerr << "Can't set digital pin as output, exiting" << std::endl;
+        cerr << "Can't set digital pin as output, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pin_forward == NULL) {
-        std::cerr << "Can't create mraa::Pwm object, exiting" << std::endl;
+        cerr << "Can't create mraa::Pwm object, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pin_forward->dir(mraa::DIR_OUT) != MRAA_SUCCESS) {
-        std::cerr << "Can't set digital pin as output, exiting" << std::endl;
+        cerr << "Can't set digital pin as output, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pin_backward == NULL) {
-        std::cerr << "Can't create mraa::Pwm object, exiting" << std::endl;
+        cerr << "Can't create mraa::Pwm object, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pin_backward->dir(mraa::DIR_OUT) != MRAA_SUCCESS) {
-        std::cerr << "Can't set digital pin as output, exiting" << std::endl;
+        cerr << "Can't set digital pin as output, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pin_left == NULL) {
-        std::cerr << "Can't create mraa::Pwm object, exiting" << std::endl;
+        cerr << "Can't create mraa::Pwm object, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pin_left->dir(mraa::DIR_OUT) != MRAA_SUCCESS) {
-        std::cerr << "Can't set digital pin as output, exiting" << std::endl;
+        cerr << "Can't set digital pin as output, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pin_right == NULL) {
-        std::cerr << "Can't create mraa::Pwm object, exiting" << std::endl;
+        cerr << "Can't create mraa::Pwm object, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
     if (pin_right->dir(mraa::DIR_OUT) != MRAA_SUCCESS) {
-        std::cerr << "Can't set digital pin as output, exiting" << std::endl;
+        cerr << "Can't set digital pin as output, exiting" << endl;
         return MRAA_ERROR_UNSPECIFIED;
     }
 
-    pin_standby->write(0);	// standby=0 means motor off
+    pin_standby->write(0);    // standby=0 means motor off
     reset_Engine();
     reset_Steering();
     pin_standby->write(1);
@@ -178,26 +181,97 @@ int init() {
     return mraa::SUCCESS;
 }
 
+int handleMessage(int input) {
+    if(input != 0)
+        cout << "[INFO] Got data: " << input;
+
+    /*
+     * forward = 1
+     * backward = 2
+     * left = 3
+     * right = 4
+     * stop = 5
+     */
+
+    switch(input) {
+        case 0:
+            break;
+        case 1:
+            cout << " forward" << endl;
+            onem_straight(true);
+            break;
+        case 2:
+            cout << " backward" << endl;
+            onem_straight(false);
+            break;
+        case 3:
+            cout << " left" << endl;
+            left(2000000);
+            break;
+        case 4:
+            cout << " right" << endl;
+            right(2000000);
+            break;
+        case 5:
+            cout << " stop" << endl;
+            stop();
+            break;
+        default: {
+            cout << "[ERROR] Got an invalid commmand!" << endl;
+            handle(SIGINT);
+        }
+    }
+
+    return 0;
+}
+
 int main() {
+    signal(SIGINT, handle);
+
     int ret = 0;
-
-	signal(SIGINT,handle);
-
-    if((ret = init()) != 0)
+    if ((ret = init()) != 0)
         return ret;
 
-    //std::thread t1(left, 2000000);
-    std::thread t2(onem_straight, true);
-    t2.join();
-    //std::thread t3(right, 2000000);
-    std::thread t4(onem_straight, true);
-    t4.join();
-    sleep(2);
+    mraa::Uart *dev;
+    try {
+        dev = new mraa::Uart(0);
+    } catch (exception &e) {
+        cout << "[ERROR]" << e.what() << ", likely invalid platform config" << endl;
+    }
 
-    //t1.join();
-    //t3.join();
+    if (dev->setBaudRate(9600) != mraa::SUCCESS) {
+        cout << "[ERROR] Setting parity on UART" << endl;
+    }
 
-	// Reset
+    if (dev->setMode(8, mraa::UART_PARITY_NONE, 1) != mraa::SUCCESS) {
+        cout << "[ERROR] Setting parity on UART" << endl;
+    }
+
+    if (dev->setFlowcontrol(false, false) != mraa::SUCCESS) {
+        cout << "[ERROR] Setting flow control UART" << endl;
+    }
+
+    dev->writeStr("I'm waiting for data!");
+    cout << "[INFO] Waiting for data" << endl;
+    vector<thread> threads;
+    while (true) {
+        if (dev->dataAvailable(100000)) {
+            char input = '0';
+            dev->read(&input,sizeof(char));
+            //string input = dev->readStr(20);
+            threads.push_back(thread(handleMessage, atoi(&input)));
+            dev->writeStr("1");
+        }
+        else
+            break;
+    }
+
+    for_each(threads.begin(), threads.end(), [](thread &t) { t.join(); });
+
+    cout << "[INFO] Done - shutting down!" << endl;
+    delete dev;
+
+    // Reset
     handle(SIGINT);
 }
 
