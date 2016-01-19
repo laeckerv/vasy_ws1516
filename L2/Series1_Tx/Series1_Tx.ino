@@ -48,7 +48,7 @@ uint8_t payload[] = {0};
 
 // with Series 1 you can use either 16-bit or 64-bit addressing
 // 16-bit addressing: Enter address of remote XBee, typically the coordinator
-Tx16Request tx = Tx16Request(0x1DFA, payload, sizeof(payload));
+Tx16Request tx = Tx16Request(0xffff, payload, sizeof(payload));
 
 TxStatusResponse txStatus = TxStatusResponse();
 Rx16Response rx16 = Rx16Response();
@@ -103,39 +103,39 @@ void loop() {
 
     // TODO: SOMEHOW WITH MRAA ON THE OTHER END WE DONT GET A RESPONSE YET :-(
 
-    //        // after sending a tx request, we expect a status response
-    //        // wait up to 5 seconds for the status response
-    //        if (xbee.readPacket(5000)) {
-    //            // got a response!
-    //
-    //            // should be a znet tx status
-    //            if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
-    //                xbee.getResponse().getTxStatusResponse(txStatus);
-    //
-    //                // get the delivery status, the fifth byte
-    //                if (txStatus.getStatus() == SUCCESS) {
-    //                    Serial.println("[INFO] Got successful response!");
-    //                    succ++;
-    //                } else {
-    //                    Serial.println("[ERROR] Response is not SUCCESS!");
-    //                    loss++;
-    //                }
-    //
-    //                xbee.getResponse().getRx16Response(rx16);
-    //                rssi = rx16.getRssi();
-    //            }
-    //        } else if (xbee.getResponse().isError()) {
-    //            //nss.print("Error reading packet.  Error code: ");
-    //            //nss.println(xbee.getResponse().getErrorCode());
-    //            // or flash error led
-    //            Serial.println("[ERROR] Response is error!");
-    //            loss++;
-    //        } else {
-    //            // local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
-    //            //flashLed(errorLed, 2, 50);
-    //            Serial.println("[ERROR] No response!");
-    //            loss++;
-    //        }
+    // after sending a tx request, we expect a status response
+    // wait up to 5 seconds for the status response
+    if (xbee.readPacket(5000)) {
+        // got a response!
+
+        // should be a znet tx status
+        if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
+            xbee.getResponse().getTxStatusResponse(txStatus);
+
+            // get the delivery status, the fifth byte
+            if (txStatus.getStatus() == SUCCESS) {
+                Serial.println("[INFO] Got successful response!");
+                succ++;
+            } else {
+                Serial.println("[ERROR] Response is not SUCCESS!");
+                loss++;
+            }
+
+            xbee.getResponse().getRx16Response(rx16);
+            rssi = rx16.getRssi();
+        }
+    } else if (xbee.getResponse().isError()) {
+        //nss.print("Error reading packet.  Error code: ");
+        //nss.println(xbee.getResponse().getErrorCode());
+        // or flash error led
+        Serial.println("[ERROR] Response is error!");
+        loss++;
+    } else {
+        // local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
+        //flashLed(errorLed, 2, 50);
+        Serial.println("[ERROR] No response!");
+        loss++;
+    }
 
     if (millis() - t_stamp_capacity > 1000) {
       uint32_t roundTrip = (micros() - t_stamp_latency);

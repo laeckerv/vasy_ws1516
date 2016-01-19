@@ -225,6 +225,41 @@ int handleMessage(int input) {
     return 0;
 }
 
+void clean(mraa::Uart *dev) {
+   while(dev->dataAvailable(100))
+       cout << "Cleaning: " << dev->readStr(1) << endl;
+}
+
+bool sendCmd(mraa::Uart *dev, string cmd) {
+    int c_max = 32;
+    int i = 0;
+    char rssi[32];
+    for(int j = 0; j < c_max; j++)
+        rssi[j] = 0;
+
+    clean(dev);
+    cout << "Write " << cmd << endl;
+    dev->flush();
+    dev->writeStr(cmd);
+    while(dev->dataAvailable(3000) && i < c_max) {
+        dev->read(&rssi[i],1);
+        if(rssi[i] == 13) {
+            rssi[i] = 0;
+            break;
+        }
+        i++;
+    }
+
+    if (strcmp(rssi, "OK") == 0) {
+        cout << "[INFO] OK" << endl;
+        return true;
+    }
+    else {
+        cout << "[ERROR] NO OK" << endl;
+        return false;
+    }
+}
+
 int main() {
     signal(SIGINT, handle);
 
@@ -260,10 +295,16 @@ int main() {
             dev->read(&input,sizeof(char));
             //string input = dev->readStr(20);
             threads.push_back(thread(handleMessage, atoi(&input)));
-            dev->writeStr("1");
         }
         else
             break;
+
+        cout << "[INFO] Reading rssi" << endl;
+        if(sendCmd(dev, "+++")) {
+            sendCmd(dev, "ATDB\r\n");
+            sendCmd(dev, "ATCN\t\n");
+        }
+        cout << "[INFO] Reading rssi done" << endl;
     }
 
     for_each(threads.begin(), threads.end(), [](thread &t) { t.join(); });
