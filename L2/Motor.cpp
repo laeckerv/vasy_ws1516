@@ -37,6 +37,7 @@
 
 #include <csignal>
 #include <iostream>
+#include <sstream>
 #include <thread>
 #include <vector>
 #include <algorithm>
@@ -62,6 +63,8 @@ mraa::Gpio *pin_backward = new mraa::Gpio(45);
 mraa::Gpio *pin_forward = new mraa::Gpio(46);
 mraa::Gpio *pin_right = new mraa::Gpio(47);
 mraa::Gpio *pin_left = new mraa::Gpio(48);
+
+static const int cycle = 800000;
 
 void reset_Engine() {
     pin_forward->write(0);
@@ -95,6 +98,42 @@ void onem_straight(bool forward) {
     pwm_engine->config_percent(1, 0.2);
     usleep(3600000);
     stop();
+}
+
+void straight(bool forward) {
+    pin_forward->write(forward);
+    pin_backward->write(!forward);
+    pwm_engine->config_percent(1, 0.4);
+    usleep(cycle);
+    stop();
+}
+
+void straight_left(bool forward) {
+    pin_forward->write(forward);
+    pin_backward->write(!forward);
+    pwm_engine->config_percent(1, 0.4);
+
+    pin_left->write(1);
+    pin_right->write(0);
+    pwm_steering->config_percent(1, 1);
+
+    usleep(cycle);
+    stop();
+    reset_Steering();
+}
+
+void straight_right(bool forward) {
+    pin_forward->write(forward);
+    pin_backward->write(!forward);
+    pwm_engine->config_percent(1, 0.4);
+
+    pin_left->write(0);
+    pin_right->write(1);
+    pwm_steering->config_percent(1, 1);
+
+    usleep(cycle);
+    stop();
+    reset_Steering();
 }
 
 void left(int usec) {
@@ -198,19 +237,19 @@ int handleMessage(int input) {
             break;
         case 1:
             cout << " forward" << endl;
-            onem_straight(true);
+            straight(true);
             break;
         case 2:
             cout << " backward" << endl;
-            onem_straight(false);
+            straight(false);
             break;
         case 3:
             cout << " left" << endl;
-            left(2000000);
+            straight_left(true);
             break;
         case 4:
             cout << " right" << endl;
-            right(2000000);
+            straight_right(true);
             break;
         case 5:
             cout << " stop" << endl;
@@ -227,10 +266,10 @@ int handleMessage(int input) {
 
 void clean(mraa::Uart *dev) {
    while(dev->dataAvailable(100))
-       cout << "Cleaning: " << dev->readStr(1) << endl;
+       dev->readStr(1);
 }
 
-bool sendCmd(mraa::Uart *dev, string cmd) {
+int sendCmd(mraa::Uart *dev, string cmd, bool response = false) {
     int c_max = 32;
     int i = 0;
     char rssi[32];
@@ -238,10 +277,9 @@ bool sendCmd(mraa::Uart *dev, string cmd) {
         rssi[j] = 0;
 
     clean(dev);
-    cout << "Write " << cmd << endl;
     dev->flush();
     dev->writeStr(cmd);
-    while(dev->dataAvailable(3000) && i < c_max) {
+    while(dev->dataAvailable(1500) && i < c_max) {
         dev->read(&rssi[i],1);
         if(rssi[i] == 13) {
             rssi[i] = 0;
@@ -251,12 +289,17 @@ bool sendCmd(mraa::Uart *dev, string cmd) {
     }
 
     if (strcmp(rssi, "OK") == 0) {
-        cout << "[INFO] OK" << endl;
-        return true;
+        return 1;
+    }
+    else if (response) {
+        stringstream ss;
+        char * p_end;
+        ss << "0" << "x" << rssi;
+        dev->writeStr(ss.str() + "\r\n");
+        return strtol(ss.str().c_str(),&p_end,16);
     }
     else {
-        cout << "[ERROR] NO OK" << endl;
-        return false;
+        return 0;
     }
 }
 
@@ -293,16 +336,13 @@ int main() {
         if (dev->dataAvailable(100000)) {
             char input = '0';
             dev->read(&input,sizeof(char));
-            //string input = dev->readStr(20);
             threads.push_back(thread(handleMessage, atoi(&input)));
         }
-        else
-            break;
 
         cout << "[INFO] Reading rssi" << endl;
         if(sendCmd(dev, "+++")) {
-            sendCmd(dev, "ATDB\r\n");
-            sendCmd(dev, "ATCN\t\n");
+            cout << "[INFO] RSSI: -" << sendCmd(dev, "ATDB\r", true) << endl;
+            sendCmd(dev, "ATCN\r");
         }
         cout << "[INFO] Reading rssi done" << endl;
     }
